@@ -1,0 +1,237 @@
+// ============================================
+// STS SARL — Gestion interne
+// Schéma Prisma — MySQL
+// ============================================
+
+datasource db {
+  provider = "mysql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  ADMIN
+  COMMERCIAL
+  TECHNICIEN
+}
+
+enum TypeBesoin {
+  VIDEOSURVEILLANCE
+  CONTROLE_ACCES
+  CLOTURE_ELECTRIQUE
+  MOTORISATION_PORTAIL
+  INCENDIE
+  ALARME
+  RADIO
+}
+
+enum SourceProspect {
+  RECOMMANDATION
+  SITE_WEB
+  APPEL_DIRECT
+  RESEAUX_SOCIAUX
+  AUTRE
+}
+
+enum StatutProspect {
+  NOUVEAU
+  CONTACTE
+  DEVIS_ENVOYE
+  NEGOCIATION
+  GAGNE
+  CONVERTI
+  PERDU
+}
+
+enum MotifPerte {
+  PRIX
+  CONCURRENT
+  DELAI
+  BESOIN_ANNULE
+  SANS_REPONSE
+  AUTRE
+}
+
+enum TypeContrat {
+  INSTALLATION
+  MAINTENANCE
+  ABONNEMENT
+}
+
+enum StatutContrat {
+  BROUILLON
+  ACTIF
+  RENOUVELLEMENT
+  EXPIRE
+  RESILIE
+}
+
+enum MotifResiliation {
+  INSATISFACTION
+  PRIX
+  DEMENAGEMENT
+  FERMETURE_ACTIVITE
+  AUTRE
+}
+
+enum TypeIntervention {
+  INSTALLATION
+  MAINTENANCE_PREVENTIVE
+  DEPANNAGE
+  CONTROLE_PERIODIQUE
+}
+
+enum StatutIntervention {
+  PLANIFIEE
+  EN_COURS
+  TERMINEE
+  ANNULEE
+}
+
+// ============================================
+// UTILISATEUR (Admin / Commercial / Technicien)
+// ============================================
+
+model Utilisateur {
+  id             Int      @id @default(autoincrement())
+  nom            String
+  email          String   @unique
+  motDePasseHash String
+  role           Role
+  actif          Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  // Un commercial suit des prospects
+  prospects      Prospect[]    @relation("CommercialProspects")
+
+  // Un technicien réalise des interventions
+  interventions  Intervention[] @relation("TechnicienInterventions")
+
+  @@index([role])
+}
+
+// ============================================
+// PROSPECT
+// ============================================
+
+model Prospect {
+  id               Int             @id @default(autoincrement())
+  nom              String
+  entreprise       String?
+  telephone        String
+  email            String?
+  adresse          String?
+  typeBesoin       TypeBesoin
+  source           SourceProspect  @default(AUTRE)
+  statut           StatutProspect  @default(NOUVEAU)
+  motifPerte       MotifPerte?
+  notes            String?         @db.Text
+  dernierRelance   DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  commercialId     Int?
+  commercial       Utilisateur?    @relation("CommercialProspects", fields: [commercialId], references: [id])
+
+  // Rempli uniquement si converti — lien 1:1 vers le Client créé
+  client           Client?
+
+  @@index([statut])
+  @@index([commercialId])
+}
+
+// ============================================
+// CLIENT (créé à la conversion d'un Prospect,
+// ou saisi directement pour un client existant)
+// ============================================
+
+model Client {
+  id            Int        @id @default(autoincrement())
+  nom           String
+  entreprise    String?
+  telephone     String
+  email         String?
+  adresse       String?
+  createdAt     DateTime   @default(now())
+
+  prospectId    Int?       @unique
+  prospect      Prospect?  @relation(fields: [prospectId], references: [id])
+
+  contrats      Contrat[]
+  interventions Intervention[]
+}
+
+// ============================================
+// CONTRAT
+// ============================================
+
+model Contrat {
+  id             Int           @id @default(autoincrement())
+  type           TypeContrat
+  statut         StatutContrat @default(BROUILLON)
+  motifResiliation MotifResiliation?
+  montant        Int           // en FCFA
+  dateSignature  DateTime?
+  dureeMois      Int?
+  dateEcheance   DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  clientId       Int
+  client         Client        @relation(fields: [clientId], references: [id])
+
+  lignes         LigneContrat[]
+  interventions  Intervention[]
+
+  @@index([statut])
+  @@index([clientId])
+  @@index([dateEcheance])
+}
+
+
+
+// Détail des équipements/services inclus dans un contrat
+model LigneContrat {
+  id           Int     @id @default(autoincrement())
+  designation  String  // ex: "4 caméras IP", "Clôture électrique 200m"
+  quantite     Int     @default(1)
+  prixUnitaire Int     // en FCFA
+
+  contratId    Int
+  contrat      Contrat @relation(fields: [contratId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// INTERVENTION
+// ============================================
+
+model Intervention {
+  id               Int                @id @default(autoincrement())
+  type             TypeIntervention
+  statut           StatutIntervention @default(PLANIFIEE)
+  dateHeurePrevue  DateTime
+  description      String?            @db.Text
+  rapport          String?            @db.Text
+  materielRemplace Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  clientId         Int
+  client           Client             @relation(fields: [clientId], references: [id])
+
+  contratId        Int?
+  contrat          Contrat?           @relation(fields: [contratId], references: [id])
+
+  technicienId     Int?
+  technicien       Utilisateur?       @relation("TechnicienInterventions", fields: [technicienId], references: [id])
+
+  @@index([statut])
+  @@index([dateHeurePrevue])
+  @@index([technicienId])
+}
