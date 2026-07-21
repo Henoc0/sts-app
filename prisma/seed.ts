@@ -143,7 +143,7 @@ async function main() {
   });
   const contratGeorgette = await prisma.contrat.create({
     data: {
-      clientId: clientGeorgette.id, type: "INSTALLATION", statut: "ACTIF", montant: 3500000,
+      clientId: 23456, type: "INSTALLATION", statut: "ACTIF", montant: 3500000,
       dateSignature: new Date("2026-01-20"),
       lignes: {
         create: [

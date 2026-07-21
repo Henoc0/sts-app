@@ -1,12 +1,9 @@
-
-
 import { Router } from "express";
-import { prisma } from "./db";
+import { prisma } from "../db";
 
-const router = Router();
-
+const prospect_controller = { 
 // GET /api/prospects — liste tous les prospects
-router.get("/", async (req, res) => {
+get : async (req, res) => {
   try {
     const prospects = await prisma.prospect.findMany({
       include: { commercial: true, client: true },
@@ -17,10 +14,10 @@ router.get("/", async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "Erreur lors de la récupération des prospects" });
   }
-});
+},
 
 // GET /api/prospects/:id — détail d'un prospect
-router.get("/:id", async (req, res) => {
+getPros : async (req, res) => {
   try {
     const prospect = await prisma.prospect.findUnique({
       where: { id: Number(req.params.id) },
@@ -34,11 +31,11 @@ router.get("/:id", async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "Erreur lors de la récupération du prospect" });
   }
-});
+},
 
 // POST /api/prospects — créer un nouveau prospect
 // Body attendu : { nom, entreprise?, telephone, email?, adresse?, typeBesoin, source?, commercialId? }
-router.post("/", async (req, res) => {
+post : async (req, res) => {
   try {
     const { nom, entreprise, telephone, email, adresse, typeBesoin, source, commercialId } = req.body;
 
@@ -64,10 +61,10 @@ router.post("/", async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "Erreur lors de la création du prospect" });
   }
-});
+},
 
 // PATCH /api/prospects/:id — modifier un prospect (statut, notes, relance, motif de perte...)
-router.patch("/:id", async (req, res) => {
+patch : async (req, res) => {
   try {
     const { statut, notes, dernierRelance, motifPerte, commercialId } = req.body;
 
@@ -91,10 +88,10 @@ router.patch("/:id", async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "Erreur lors de la mise à jour du prospect" });
   }
-});
+},
 
 // POST /api/prospects/:id/convertir — convertit un prospect GAGNE en Client
-router.post("/:id/convertir", async (req, res) => {
+postConvertPros : async (req, res) => {
   try {
     const prospect = await prisma.prospect.findUnique({
       where: { id: Number(req.params.id) },
@@ -132,6 +129,6 @@ router.post("/:id/convertir", async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "Erreur lors de la conversion du prospect en client" });
   }
-});
+}};
 
-export default router;
+export default prospect_controller;
